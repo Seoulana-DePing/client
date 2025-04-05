@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 
-function WalletConnect() {
-  const [walletAddress, setWalletAddress] = useState(null);
+function WalletConnect({ walletAddress, setWalletAddress }) {
   const [isPhantomInstalled, setIsPhantomInstalled] = useState(false);
 
   useEffect(() => {
