@@ -3,31 +3,17 @@ import styled from "styled-components";
 import WalletConnect from "./WalletConnect";
 import { wsService } from "../services/websocket";
 
+import * as web3 from "@solana/web3.js";
+import { Buffer } from "buffer";
+
 function SearchPage({ onSearch }) {
   const [ip, setIp] = useState("");
+  const [walletAddress, setWalletAddress] = useState(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // 웹소켓 연결
-    wsService.connect();
-
-    // IP 위치 응답 리스너 설정
-    wsService.on("IP_LOCATION_RESPONSE", (data) => {
-      setIsLoading(false);
-
-      if (data.error) {
-        setError(data.error);
-        return;
-      }
-
-      onSearch({
-        latitude: data.latitude,
-        longitude: data.longitude,
-        country: data.country_code,
-      });
-    });
-
     // 컴포넌트 언마운트 시 웹소켓 연결 해제
     return () => {
       wsService.disconnect();
@@ -42,20 +28,82 @@ function SearchPage({ onSearch }) {
 
     setIsLoading(true);
     setError(null);
+    // 1. 웹소켓 연결
+    wsService.connect(
+      () => {
+        // openCallback
+        const message = { type: 1, data: { ip: "8.8.8.8" } };
+        wsService.sendMessage(message);
+      },
+      () => {
+        // closeCallback
+        wsService.connect(
+          () => {
+            // openCallback
+            const message = {
+              type: 2,
+              data: {
+                signed_tx: "signedTxEX",
+                request_id: "74f75535-6c07-4b6c-a091-350fc27e2409",
+              },
+            };
+            wsService.sendMessage(message);
+          },
+          () => {} // closeCallback
+        );
 
-    try {
-      wsService.searchIpLocation(ip);
-    } catch (err) {
-      setError(err.message);
-      setIsLoading(false);
-    }
+        // 4. IP 위치 응답 리스너 설정
+        wsService.on("result", (data) => {
+          setIsLoading(false);
+
+          if (data.error) {
+            setError(data.error);
+            return;
+          }
+
+          //   onSearch({
+          //     latitude: data.latitude,
+          //     longitude: data.longitude,
+          //     country: data.country_code,
+          //     geoResult: data.geoResult,
+          //   });
+        });
+
+        try {
+          wsService.searchIpLocation(ip);
+        } catch (err) {
+          setError(err.message);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // 2. 1.에서 unsignedTx 넘어오면 서명하는 callback
+    wsService.on("unsignedTx", async (message) => {
+      if (message.type === "unsignedTx") {
+        const payload = message.payload;
+
+        // Decode and sign the transaction
+        const transaction = web3.Transaction.from(
+          Buffer.from(payload.transaction, "base64")
+        );
+        const signedTx = await window.solana.signTransaction(transaction);
+
+        wsService.sendSignedTransaction(
+          signedTx.serialize().toString("base64")
+        );
+      }
+    });
   };
 
   return (
     <SearchContainer>
       <SearchBox>
-        <Title>IP Location Finder</Title>
-        <WalletConnect />
+        <Title>DePing</Title>
+        <WalletConnect
+          walletAddress={walletAddress}
+          setWalletAddress={setWalletAddress}
+        />
         <InputWrapper>
           <Input
             type="text"

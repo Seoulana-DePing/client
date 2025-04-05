@@ -20,8 +20,12 @@ function App() {
 
   // 페이지 전환을 위한 핸들러
   const handleSearch = (data) => {
+    console.log("search", data);
     setCurrentPage("map");
-    setGeoData(data);
+    setGeoData({
+      selectedCountry: "KR",
+      coordinates: exCoordinates,
+    });
     // setGeoData({
     //   selectedCountry: exCountry,
     //   coordinates: exCoordinates,

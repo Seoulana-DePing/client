@@ -2,6 +2,7 @@ import styled from "styled-components";
 import WorldMap from "./WorldMap";
 
 function MapPage({ onBack, selectedCountry, coordinates }) {
+  console.log(selectedCountry, coordinates);
   return (
     <MapContainer>
       <BackArrow onClick={onBack}>

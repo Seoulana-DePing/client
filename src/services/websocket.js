@@ -4,14 +4,16 @@ class WebSocketService {
     this.callbacks = new Map();
   }
 
-  connect() {
-    this.ws = new WebSocket("ws://your-websocket-server-url");
+  connect(openCallback, closeCallback) {
+    this.ws = new WebSocket("ws://localhost:12002/ws/ip-geo");
 
     this.ws.onopen = () => {
       console.log("WebSocket Connected");
+      openCallback();
     };
 
     this.ws.onmessage = (event) => {
+      console.log("message coming from router ", event);
       const data = JSON.parse(event.data);
       if (data.type && this.callbacks.has(data.type)) {
         this.callbacks.get(data.type)(data);
@@ -24,9 +26,35 @@ class WebSocketService {
 
     this.ws.onclose = () => {
       console.log("WebSocket Disconnected");
+      this.disconnect();
+      closeCallback();
       // 재연결 로직 추가 가능
-      setTimeout(() => this.connect(), 3000);
+      //   setTimeout(() => this.connect(), 3000);
     };
+  }
+
+  sendMessage(message) {
+    console.log("message to router ", message);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    } else {
+      throw new Error("WebSocket is not connected");
+    }
+  }
+
+  sendSignedTransaction(signedTx) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "SIGNED_TRANSACTION",
+          data: {
+            signedTx: signedTx.serialize().toString("base64"),
+          },
+        })
+      );
+    } else {
+      throw new Error("WebSocket is not connected");
+    }
   }
 
   on(type, callback) {
@@ -49,6 +77,8 @@ class WebSocketService {
   disconnect() {
     if (this.ws) {
       this.ws.close();
+      this.ws = null;
+      this.callbacks = new Map();
     }
   }
 }
